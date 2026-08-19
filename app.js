@@ -157,15 +157,23 @@ function togglePlay(stationId) {
   playStation(stationId);
 }
 
+let hlsInstance = null;
+
+function teardownHls() {
+  if (hlsInstance) {
+    try { hlsInstance.destroy(); } catch (e) { /* ignore */ }
+    hlsInstance = null;
+  }
+}
+
 function playStation(stationId) {
   const station = STATIONS.find(s => s.id === stationId);
   if (!station) return;
 
+  teardownHls();
   audioEl.pause();
-  audioEl.src = station.url;
-  audioEl.play().catch(() => {
-    showToastError("เล่นสถานีนี้ไม่สำเร็จ ลองใหม่อีกครั้ง");
-  });
+  audioEl.removeAttribute("src");
+  audioEl.load();
 
   state.currentStationId = stationId;
   state.isPaused = false;
@@ -177,9 +185,41 @@ function playStation(stationId) {
   setPlayerIcon(false);
   refreshStationCards();
 
+  loadAndPlay(station);
+
   if (state.user) {
     api("logPlay", { stationId: station.id, stationName: station.name }).catch(() => {});
   }
+}
+
+function loadAndPlay(station) {
+  const looksLikeHls = /\.m3u8(\?|$)/i.test(station.url);
+
+  // Native HLS support exists in Safari; other browsers need hls.js.
+  if (looksLikeHls && !audioEl.canPlayType("application/vnd.apple.mpegurl") && window.Hls && window.Hls.isSupported()) {
+    hlsInstance = new window.Hls();
+    hlsInstance.loadSource(station.url);
+    hlsInstance.attachMedia(audioEl);
+    hlsInstance.on(window.Hls.Events.ERROR, (_evt, data) => {
+      if (data && data.fatal) handlePlaybackError("hls:" + data.type, station);
+    });
+    audioEl.play().catch(err => handlePlaybackError("play():" + err.message, station));
+  } else {
+    audioEl.src = station.url;
+    audioEl.play().catch(err => handlePlaybackError("play():" + err.message, station));
+  }
+}
+
+function handlePlaybackError(detail, station) {
+  console.warn("Playback error for", station && station.id, "-", detail, audioEl.error);
+  let msg = "เล่นสถานีนี้ไม่สำเร็จ";
+  const code = audioEl.error && audioEl.error.code;
+  if (code === 1) msg += " (การเล่นถูกยกเลิกกลางคัน ลองกดเล่นอีกครั้ง)";
+  else if (code === 2) msg += " (เชื่อมต่อสถานีไม่สำเร็จ — สถานีอาจปิดกั้นการฝังลิงก์จากเว็บนอกโดเมนของเขา ลองเปิด URL สตรีมตรงๆ ในแท็บใหม่เพื่อเทียบผล)";
+  else if (code === 3) msg += " (ถอดรหัสไฟล์เสียงไม่สำเร็จ)";
+  else if (code === 4) msg += " (เบราว์เซอร์นี้ไม่รองรับรูปแบบสตรีมของสถานีนี้)";
+  else msg += " ลองใหม่อีกครั้ง (ดู console ในเบราว์เซอร์ F12 สำหรับรายละเอียด)";
+  showToastError(msg);
 }
 
 function pausePlayback() {
@@ -505,6 +545,13 @@ function init() {
     if (state.isPaused) resumePlayback(); else pausePlayback();
   });
   document.getElementById("playerCloseBtn").addEventListener("click", closePlayer);
+
+  audioEl.addEventListener("error", () => {
+    if (state.currentStationId) {
+      const station = STATIONS.find(s => s.id === state.currentStationId);
+      handlePlaybackError("audio element error event", station);
+    }
+  });
 
   if (!getScriptUrl()) {
     const saved = localStorage.getItem("thairadio_scripturl");
