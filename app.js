@@ -4,7 +4,7 @@
 
 // 6) วาง URL ของ Apps Script Web App ที่ deploy แล้วตรงนี้
 //    (ทำครั้งเดียว ไม่ต้องกรอกใหม่ทุกเครื่อง/เบราว์เซอร์)
-const DEFAULT_SCRIPT_URL = "";
+const DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEb_A-zlbJYXM3PLiejwyrH1SdQHWNjNPEb5s_9_NIhfn1a03oIwhC-ulBr2WtC2SG/exec";
 
 const STATIONS = [
   { id: "greenwave", name: "Green Wave", freq: "106.5 MHz", url: "https://atime.live/stream/greenwave", category: "music", tag: "เพลงฮิต" },
