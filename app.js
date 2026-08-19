@@ -158,6 +158,20 @@ function togglePlay(stationId) {
 }
 
 let hlsInstance = null;
+let hlsLoadPromise = null;
+
+function loadHlsLibrary() {
+  if (window.Hls) return Promise.resolve(window.Hls);
+  if (hlsLoadPromise) return hlsLoadPromise;
+  hlsLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.15/hls.min.js";
+    script.onload = () => resolve(window.Hls);
+    script.onerror = () => reject(new Error("โหลดไลบรารี HLS ไม่สำเร็จ"));
+    document.head.appendChild(script);
+  });
+  return hlsLoadPromise;
+}
 
 function teardownHls() {
   if (hlsInstance) {
@@ -192,22 +206,32 @@ function playStation(stationId) {
   }
 }
 
-function loadAndPlay(station) {
+async function loadAndPlay(station) {
   const looksLikeHls = /\.m3u8(\?|$)/i.test(station.url);
+  const nativeHlsSupported = audioEl.canPlayType("application/vnd.apple.mpegurl");
 
-  // Native HLS support exists in Safari; other browsers need hls.js.
-  if (looksLikeHls && !audioEl.canPlayType("application/vnd.apple.mpegurl") && window.Hls && window.Hls.isSupported()) {
-    hlsInstance = new window.Hls();
-    hlsInstance.loadSource(station.url);
-    hlsInstance.attachMedia(audioEl);
-    hlsInstance.on(window.Hls.Events.ERROR, (_evt, data) => {
-      if (data && data.fatal) handlePlaybackError("hls:" + data.type, station);
-    });
-    audioEl.play().catch(err => handlePlaybackError("play():" + err.message, station));
-  } else {
-    audioEl.src = station.url;
-    audioEl.play().catch(err => handlePlaybackError("play():" + err.message, station));
+  if (looksLikeHls && !nativeHlsSupported) {
+    try {
+      const Hls = await loadHlsLibrary();
+      if (!Hls || !Hls.isSupported()) throw new Error("HLS not supported");
+      // Station may have changed while the library was loading.
+      if (state.currentStationId !== station.id) return;
+      hlsInstance = new Hls();
+      hlsInstance.loadSource(station.url);
+      hlsInstance.attachMedia(audioEl);
+      hlsInstance.on(Hls.Events.ERROR, (_evt, data) => {
+        if (data && data.fatal) handlePlaybackError("hls:" + data.type, station);
+      });
+      audioEl.play().catch(err => handlePlaybackError("play():" + err.message, station));
+      return;
+    } catch (err) {
+      handlePlaybackError("hls-load:" + err.message, station);
+      return;
+    }
   }
+
+  audioEl.src = station.url;
+  audioEl.play().catch(err => handlePlaybackError("play():" + err.message, station));
 }
 
 function handlePlaybackError(detail, station) {

@@ -568,6 +568,33 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 }
 .admin-section-title:first-child { margin-top: 0; }
 
+/* ================= Watermark ================= */
+
+.watermark {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(27, 31, 41, 0.7);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.7rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+  opacity: 0.55;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+.watermark:hover { opacity: 1; color: var(--amber); }
+
+@media (max-width: 640px) {
+  .watermark { display: none; }
+}
+
 /* ================= Responsive ================= */
 
 @media (max-width: 640px) {
