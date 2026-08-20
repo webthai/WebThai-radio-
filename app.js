@@ -527,12 +527,12 @@ function openModal(id, isDrawer) {
 
 function closeModal(id) {
   document.getElementById(id).classList.add("hidden");
-  const anyOpen = ["authModal", "settingsModal", "drawer"].some(m => !document.getElementById(m).classList.contains("hidden"));
+  const anyOpen = ["authModal", "settingsModal", "drawer", "maintenanceModal"].some(m => !document.getElementById(m).classList.contains("hidden"));
   if (!anyOpen) document.getElementById("overlay").classList.add("hidden");
 }
 
 function closeAllModals() {
-  ["authModal", "settingsModal", "drawer"].forEach(id => document.getElementById(id).classList.add("hidden"));
+  ["authModal", "settingsModal", "drawer", "maintenanceModal"].forEach(id => document.getElementById(id).classList.add("hidden"));
   document.getElementById("overlay").classList.add("hidden");
 }
 
@@ -543,6 +543,11 @@ function closeAllModals() {
 function init() {
   renderStations();
   renderAuthArea();
+
+  // Maintenance notice — shows once per page load
+  openModal("maintenanceModal");
+  document.getElementById("maintenanceModalClose").addEventListener("click", () => closeModal("maintenanceModal"));
+  document.getElementById("maintenanceModalOk").addEventListener("click", () => closeModal("maintenanceModal"));
 
   document.getElementById("overlay").addEventListener("click", closeAllModals);
   document.getElementById("authModalClose").addEventListener("click", () => closeModal("authModal"));
